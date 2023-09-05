@@ -6,7 +6,7 @@ client:
     ssl-enabled: true
     ssl-info:
       key-store-type: PKCS12
-      key-store: src/main/resources/keys/client.p12
+      key-store: client-service/src/main/resources/keys/client.p12
       key-store-password: changeit
       self-signed-enabled: true
 

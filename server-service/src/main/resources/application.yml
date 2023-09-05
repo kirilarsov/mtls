@@ -2,11 +2,11 @@ server:
   port: ${SERVER_PORT:8443}
   ssl:
     key-store-type: PKCS12
-    key-store: src/main/resources/keys/server.p12
+    key-store: server-service/src/main/resources/keys/server.p12
     key-store-password: changeit
     key-alias: server
     client-auth: need
-    trust-store: src/main/resources/keys/server-truststore.p12
+    trust-store: server-service/src/main/resources/keys/server-truststore.p12
     trust-store-password: changeit
     trust-store-type: PKCS12
 
