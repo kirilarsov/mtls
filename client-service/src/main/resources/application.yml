@@ -1,0 +1,17 @@
+server:
+  port: ${SERVER_PORT:8080}
+client:
+  integrations:
+    server-service-url: 'https://localhost:8443'
+    ssl-enabled: true
+    ssl-info:
+      key-store-type: PKCS12
+      key-store: src/main/resources/keys/client.p12
+      key-store-password: changeit
+      self-signed-enabled: true
+
+spring:
+  application:
+    name: client
+  profiles:
+    active: ${SPRING_PROFILES}

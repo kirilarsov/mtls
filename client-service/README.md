@@ -19,6 +19,7 @@ participant client-service
 participant server-service
 end
     curl ->> client-service: GET http://localhost:8080/health-server
+        Note over client-service,server-service: COMMUNICATION OVER mTLS
         client-service->> server-service: GET https://localhost:8443/health
         server-service-->>client-service: server response
         client-service-->>curl: client response
