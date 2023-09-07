@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8081}
 client:
   integrations:
     server-service-url: 'https://localhost:8443'
@@ -8,8 +8,10 @@ client:
       key-store-type: PKCS12
       key-store: client-service/src/main/resources/keys/client.p12
       key-store-password: changeit
+      trust-store: client-service/src/main/resources/keys/client-truststore.p12
+      trust-store-password: changeit
+      trust-store-type: PKCS12
       self-signed-enabled: true
-
 spring:
   application:
     name: client

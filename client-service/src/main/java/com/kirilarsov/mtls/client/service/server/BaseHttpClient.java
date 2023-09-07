@@ -9,17 +9,18 @@ import com.kirilarsov.mtls.client.util.CheckedExceptionHandler;
 import com.kirilarsov.mtls.client.exception.BadRequestException;
 import com.kirilarsov.mtls.client.exception.BaseException;
 import com.kirilarsov.mtls.client.exception.InternalServerException;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.ssl.SSLContexts;
 import org.springframework.http.HttpStatus;
 
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.*;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Properties;
@@ -41,7 +42,7 @@ public abstract class BaseHttpClient {
     }
 
     protected BaseHttpClient(String baseUrl, boolean sslEnabled, ClientConfig.Integrations.SslInfo sslInfo) {
-        SSLContext sslcontext = null;
+        SSLContext sslContext = null;
         this.baseUrl = baseUrl;
         this.objectMapper =
                 JsonMapper.builder()
@@ -54,25 +55,36 @@ public abstract class BaseHttpClient {
                 props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
             }
             try {
-                KeyStore trustStore = KeyStore.getInstance(sslInfo.getKeyStoreType());
 
-                FileInputStream instream = new FileInputStream(new File(sslInfo.getKeyStore()));
-                try {
-                    trustStore.load(instream, sslInfo.getKeyStorePassword().toCharArray());
-                } finally {
-                    instream.close();
-                }
+                Path trustStorePath = Paths.get(sslInfo.getTrustStore());
+                InputStream trustStoreStream = Files.newInputStream(trustStorePath, StandardOpenOption.READ);
+                KeyStore trustStore = KeyStore.getInstance(sslInfo.getTrustStoreType());
+                trustStore.load(trustStoreStream, sslInfo.getTrustStorePassword().toCharArray());
+                String trustManagerFactoryAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm);
+                trustManagerFactory.init(trustStore);
+                trustStoreStream.close();
 
-                sslcontext = SSLContexts.custom()
-                        .loadKeyMaterial(trustStore, sslInfo.getKeyStorePassword().toCharArray())
-                        .loadTrustMaterial(trustStore, new TrustSelfSignedStrategy())
-                        .setProtocol("TLS")
-                        .build();
+                Path identityPath = Paths.get(sslInfo.getKeyStore());
+                InputStream identityStream = Files.newInputStream(identityPath, StandardOpenOption.READ);
+                KeyStore identity = KeyStore.getInstance(sslInfo.getKeyStoreType());
+                identity.load(identityStream, sslInfo.getKeyStorePassword().toCharArray());
+                String keyManagerFactoryAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+                KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(keyManagerFactoryAlgorithm);
+                keyManagerFactory.init(identity, sslInfo.getKeyStorePassword().toCharArray());
+                identityStream.close();
+                sslContext = SSLContext.getInstance("TLS");
+                sslContext.init(
+                        keyManagerFactory.getKeyManagers(),
+                        trustManagerFactory.getTrustManagers(),
+                        null
+                );
+
             } catch (KeyStoreException | NoSuchAlgorithmException | IOException | KeyManagementException |
                      CertificateException | UnrecoverableKeyException e) {
                 throw new InternalServerException(e.hashCode(), e.getMessage());
             }
-            this.client = HttpClient.newBuilder().sslContext(sslcontext).build();
+            this.client = HttpClient.newBuilder().sslContext(sslContext).build();
         } else {
             this.client = HttpClient.newBuilder().build();
         }

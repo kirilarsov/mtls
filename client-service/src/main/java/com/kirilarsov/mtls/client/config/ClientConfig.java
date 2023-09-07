@@ -55,7 +55,35 @@ public class ClientConfig {
             String keyStoreType;
             String keyStorePassword;
             String keyStore;
+
+            String trustStoreType;
+            String trustStorePassword;
+            String trustStore;
             boolean selfSignedEnabled;
+
+            public String getTrustStoreType() {
+                return trustStoreType;
+            }
+
+            public void setTrustStoreType(String trustStoreType) {
+                this.trustStoreType = trustStoreType;
+            }
+
+            public String getTrustStorePassword() {
+                return trustStorePassword;
+            }
+
+            public void setTrustStorePassword(String trustStorePassword) {
+                this.trustStorePassword = trustStorePassword;
+            }
+
+            public String getTrustStore() {
+                return trustStore;
+            }
+
+            public void setTrustStore(String trustStore) {
+                this.trustStore = trustStore;
+            }
 
             public String getKeyStoreType() {
                 return keyStoreType;
