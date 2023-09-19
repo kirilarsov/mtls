@@ -1,18 +1,22 @@
-<meta name="google-site-verification" content="LDKn90va3kWYkijqIz8oWYnib6QOwbZT9H1ac8ZVnSk" />
-<h1 id="mtls-between-client-service-and-server-service-using-java-net-http-httpclient">mTLS between client-service and server-service using java.net.http.HttpClient</h1>
-<h1 id="what-is-mtls">What is mTLS</h1>
-<p><img src="../img.png" alt="img.png"></p>
-<h1 id="setup">Setup</h1>
-<p>We have 2 services <code>client-service</code> and <code>server-service</code></p>
-<ul>
-    <li><p><code>server-service</code> has one REST endpoint <code>/health</code> that always returns true for simplicity</p>
-    </li>
-    <li><p><code>client-service</code> has one REST endpoint <code>/health-server</code> that calls <code>/health</code> from <code>server-service</code></p>
-    </li>
-    <li><p><code>client-service</code> integrates to <code>server-service</code> using <code>java.net.http.HttpClient</code></p>
-    </li>
-</ul>
-<pre><code class="lang-mermaid">sequenceDiagram
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="google-site-verification" content="LDKn90va3kWYkijqIz8oWYnib6QOwbZT9H1ac8ZVnSk" />
+    <meta charset="UTF-8">
+    <h1 id="mtls-between-client-service-and-server-service-using-java-net-http-httpclient">mTLS between client-service and server-service using java.net.http.HttpClient</h1>
+    <h1 id="what-is-mtls">What is mTLS</h1>
+    <p><img src="../img.png" alt="img.png"></p>
+    <h1 id="setup">Setup</h1>
+    <p>We have 2 services <code>client-service</code> and <code>server-service</code></p>
+    <ul>
+        <li><p><code>server-service</code> has one REST endpoint <code>/health</code> that always returns true for simplicity</p>
+        </li>
+        <li><p><code>client-service</code> has one REST endpoint <code>/health-server</code> that calls <code>/health</code> from <code>server-service</code></p>
+        </li>
+        <li><p><code>client-service</code> integrates to <code>server-service</code> using <code>java.net.http.HttpClient</code></p>
+        </li>
+    </ul>
+    <pre><code class="lang-mermaid">sequenceDiagram
 participant curl
 box Communication over mTLS
 participant <span class="hljs-keyword">client</span>-service
@@ -23,27 +27,27 @@ end
         <span class="hljs-keyword">server</span>-service--&gt;&gt;<span class="hljs-keyword">client</span>-service: <span class="hljs-keyword">server</span> response
         <span class="hljs-keyword">client</span>-service--&gt;&gt;curl: <span class="hljs-keyword">client</span> response
 </code></pre>
-<h1 id="creating-the-certificates">Creating the certificates</h1>
-<p>Generate the key pairs for the client and server</p>
-<pre><code>keytool -genkeypair -alias <span class="hljs-keyword">server</span> -keyalg RSA -keysize <span class="hljs-number">4096</span> -validity <span class="hljs-number">365</span> -dname <span class="hljs-string">"CN=Server,OU=Server,O=Examples,L=,S=CA,C=U"</span> -keypass changeit -keystore <span class="hljs-keyword">server</span>.p12 -storeType PKCS12 -storepass changeit
+    <h1 id="creating-the-certificates">Creating the certificates</h1>
+    <p>Generate the key pairs for the client and server</p>
+    <pre><code>keytool -genkeypair -alias <span class="hljs-keyword">server</span> -keyalg RSA -keysize <span class="hljs-number">4096</span> -validity <span class="hljs-number">365</span> -dname <span class="hljs-string">"CN=Server,OU=Server,O=Examples,L=,S=CA,C=U"</span> -keypass changeit -keystore <span class="hljs-keyword">server</span>.p12 -storeType PKCS12 -storepass changeit
 keytool -genkeypair -alias <span class="hljs-keyword">client</span> -keyalg RSA -keysize <span class="hljs-number">4096</span> -validity <span class="hljs-number">365</span> -dname <span class="hljs-string">"CN=Client,OU=Server,O=Examples,L=,S=CA,C=U"</span> -keypass changeit -keystore <span class="hljs-keyword">client</span>.p12 -storeType PKCS12 -storepass changeit
 </code></pre><p>Export the public keys</p>
-<pre><code>keytool -exportcert -alias client -file client<span class="hljs-selector-class">.cer</span> -keystore client<span class="hljs-selector-class">.p12</span> -storepass changeit
+    <pre><code>keytool -exportcert -alias client -file client<span class="hljs-selector-class">.cer</span> -keystore client<span class="hljs-selector-class">.p12</span> -storepass changeit
 keytool -exportcert -alias server -file server<span class="hljs-selector-class">.cer</span> -keystore server<span class="hljs-selector-class">.p12</span> -storepass changeit
 </code></pre><p>Import public keys to trust stores</p>
-<pre><code>keytool -importcert -keystore <span class="hljs-keyword">client</span>-truststore.p12 -alias <span class="hljs-keyword">server</span>-<span class="hljs-keyword">public</span> -file <span class="hljs-keyword">server</span>.cer -storepass changeit -noprompt
+    <pre><code>keytool -importcert -keystore <span class="hljs-keyword">client</span>-truststore.p12 -alias <span class="hljs-keyword">server</span>-<span class="hljs-keyword">public</span> -file <span class="hljs-keyword">server</span>.cer -storepass changeit -noprompt
 keytool -importcert -keystore <span class="hljs-keyword">server</span>-truststore.p12 -alias <span class="hljs-keyword">client</span>-<span class="hljs-keyword">public</span> -file <span class="hljs-keyword">client</span>.cer -storepass changeit -noprompt
 </code></pre><h1 id="startup">Startup</h1>
-<p>Use maven to build both services</p>
-<pre><code><span class="hljs-keyword">mvn </span>clean install
+    <p>Use maven to build both services</p>
+    <pre><code><span class="hljs-keyword">mvn </span>clean install
 </code></pre><p>Use maven to start both services</p>
-<pre><code>mvn spring-boot:<span class="hljs-keyword">run</span><span class="bash"></span>
+    <pre><code>mvn spring-boot:<span class="hljs-keyword">run</span><span class="bash"></span>
 </code></pre><h1 id="using-the-api-to-test-mtls">Using the API to test mTLS</h1>
-<h3 id="calling-client-service-for-the-server-health-using-the-integration-and-httpclient">Calling <code>client-service</code> for the server health using the integration and HttpClient</h3>
-<p>Request:</p>
-<pre><code>curl -v <span class="hljs-string">http:</span><span class="hljs-comment">//localhost:8080/health-server</span>
+    <h3 id="calling-client-service-for-the-server-health-using-the-integration-and-httpclient">Calling <code>client-service</code> for the server health using the integration and HttpClient</h3>
+    <p>Request:</p>
+    <pre><code>curl -v <span class="hljs-string">http:</span><span class="hljs-comment">//localhost:8080/health-server</span>
 </code></pre><p>Response:</p>
-<pre><code>*   Trying <span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8080</span>...
+    <pre><code>*   Trying <span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8080</span>...
 * Connected <span class="hljs-keyword">to</span> localhost (<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>) port <span class="hljs-number">8080</span> (#<span class="hljs-number">0</span>)
 &gt; GET /health-server HTTP/<span class="hljs-number">1.1</span>
 &gt; Hos<span class="hljs-variable">t:</span> localhos<span class="hljs-variable">t:8080</span>
@@ -64,10 +68,10 @@ keytool -importcert -keystore <span class="hljs-keyword">server</span>-truststor
 * Connection #<span class="hljs-number">0</span> <span class="hljs-keyword">to</span> host localhost <span class="hljs-keyword">left</span> intact
 true%
 </code></pre><h3 id="calling-server-service-directly-providing-the-client-certificate">Calling <code>server-service</code> directly providing the client certificate</h3>
-<p>Request:</p>
-<pre><code>curl -k -v --cert-type P12 --cert client.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+    <p>Request:</p>
+    <pre><code>curl -k -v --cert-type P12 --cert client.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
 </code></pre><p>Response:</p>
-<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+    <pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
 <span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
 <span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
 <span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
@@ -102,10 +106,10 @@ true%
 * <span class="hljs-attr">Connection</span> #<span class="hljs-attr">0</span> <span class="hljs-attr">to</span> <span class="hljs-attr">host</span> <span class="hljs-attr">localhost</span> <span class="hljs-attr">left</span> <span class="hljs-attr">intact</span>
 <span class="hljs-attr">true</span>%</span></span>
 </code></pre><h3 id="calling-server-service-without-providing-the-client-certificate">Calling <code>server-service</code> without providing the client certificate</h3>
-<p>Request:</p>
-<pre><code>curl -k -v <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+    <p>Request:</p>
+    <pre><code>curl -k -v <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
 </code></pre><p>Response:</p>
-<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+    <pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
 <span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
 <span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
 <span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
@@ -135,10 +139,10 @@ true%
 <span class="hljs-bullet">* </span>Closing connection 0
 curl: (56) LibreSSL SSL<span class="hljs-emphasis">_read: LibreSSL/3.3.6: error:1404C412:SSL routines:ST_</span>OK:sslv3 alert bad certificate, errno 0
 </code></pre><h3 id="calling-server-service-with-wrong-certificate">Calling <code>server-service</code> with wrong certificate</h3>
-<p>Request:</p>
-<pre><code>curl -k -v --cert-type P12 --cert server.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+    <p>Request:</p>
+    <pre><code>curl -k -v --cert-type P12 --cert server.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
 </code></pre><p>Response:</p>
-<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+    <pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
 <span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
 <span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
 <span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
@@ -169,3 +173,8 @@ curl: (56) LibreSSL SSL<span class="hljs-emphasis">_read: LibreSSL/3.3.6: error:
 <span class="hljs-bullet">* </span>Closing connection 0
 curl: (56) LibreSSL SSL<span class="hljs-emphasis">_read: LibreSSL/3.3.6: error:1404C416:SSL routines:ST_</span>OK:sslv3 alert certificate unknown, errno 0
 </code></pre>
+</head>
+<body>
+
+</body>
+</html>
