@@ -1,0 +1,171 @@
+<meta name="google-site-verification" content="A4nqq4QSaNIRdPSFTrWOsVz9Rm793sKwqhshtE7n5aQ" />
+<h1 id="mtls-between-client-service-and-server-service-using-java-net-http-httpclient">mTLS between client-service and server-service using java.net.http.HttpClient</h1>
+<h1 id="what-is-mtls">What is mTLS</h1>
+<p><img src="img.png" alt="img.png"></p>
+<h1 id="setup">Setup</h1>
+<p>We have 2 services <code>client-service</code> and <code>server-service</code></p>
+<ul>
+    <li><p><code>server-service</code> has one REST endpoint <code>/health</code> that always returns true for simplicity</p>
+    </li>
+    <li><p><code>client-service</code> has one REST endpoint <code>/health-server</code> that calls <code>/health</code> from <code>server-service</code></p>
+    </li>
+    <li><p><code>client-service</code> integrates to <code>server-service</code> using <code>java.net.http.HttpClient</code></p>
+    </li>
+</ul>
+<pre><code class="lang-mermaid">sequenceDiagram
+participant curl
+box Communication over mTLS
+participant <span class="hljs-keyword">client</span>-service
+participant <span class="hljs-keyword">server</span>-service
+end
+    curl -&gt;&gt; <span class="hljs-keyword">client</span>-service: GET http:<span class="hljs-comment">//localhost:8080/health-server</span>
+        <span class="hljs-keyword">client</span>-service-&gt;&gt; <span class="hljs-keyword">server</span>-service: GET https:<span class="hljs-comment">//localhost:8443/health</span>
+        <span class="hljs-keyword">server</span>-service--&gt;&gt;<span class="hljs-keyword">client</span>-service: <span class="hljs-keyword">server</span> response
+        <span class="hljs-keyword">client</span>-service--&gt;&gt;curl: <span class="hljs-keyword">client</span> response
+</code></pre>
+<h1 id="creating-the-certificates">Creating the certificates</h1>
+<p>Generate the key pairs for the client and server</p>
+<pre><code>keytool -genkeypair -alias <span class="hljs-keyword">server</span> -keyalg RSA -keysize <span class="hljs-number">4096</span> -validity <span class="hljs-number">365</span> -dname <span class="hljs-string">"CN=Server,OU=Server,O=Examples,L=,S=CA,C=U"</span> -keypass changeit -keystore <span class="hljs-keyword">server</span>.p12 -storeType PKCS12 -storepass changeit
+keytool -genkeypair -alias <span class="hljs-keyword">client</span> -keyalg RSA -keysize <span class="hljs-number">4096</span> -validity <span class="hljs-number">365</span> -dname <span class="hljs-string">"CN=Client,OU=Server,O=Examples,L=,S=CA,C=U"</span> -keypass changeit -keystore <span class="hljs-keyword">client</span>.p12 -storeType PKCS12 -storepass changeit
+</code></pre><p>Export the public keys</p>
+<pre><code>keytool -exportcert -alias client -file client<span class="hljs-selector-class">.cer</span> -keystore client<span class="hljs-selector-class">.p12</span> -storepass changeit
+keytool -exportcert -alias server -file server<span class="hljs-selector-class">.cer</span> -keystore server<span class="hljs-selector-class">.p12</span> -storepass changeit
+</code></pre><p>Import public keys to trust stores</p>
+<pre><code>keytool -importcert -keystore <span class="hljs-keyword">client</span>-truststore.p12 -alias <span class="hljs-keyword">server</span>-<span class="hljs-keyword">public</span> -file <span class="hljs-keyword">server</span>.cer -storepass changeit -noprompt
+keytool -importcert -keystore <span class="hljs-keyword">server</span>-truststore.p12 -alias <span class="hljs-keyword">client</span>-<span class="hljs-keyword">public</span> -file <span class="hljs-keyword">client</span>.cer -storepass changeit -noprompt
+</code></pre><h1 id="startup">Startup</h1>
+<p>Use maven to build both services</p>
+<pre><code><span class="hljs-keyword">mvn </span>clean install
+</code></pre><p>Use maven to start both services</p>
+<pre><code>mvn spring-boot:<span class="hljs-keyword">run</span><span class="bash"></span>
+</code></pre><h1 id="using-the-api-to-test-mtls">Using the API to test mTLS</h1>
+<h3 id="calling-client-service-for-the-server-health-using-the-integration-and-httpclient">Calling <code>client-service</code> for the server health using the integration and HttpClient</h3>
+<p>Request:</p>
+<pre><code>curl -v <span class="hljs-string">http:</span><span class="hljs-comment">//localhost:8080/health-server</span>
+</code></pre><p>Response:</p>
+<pre><code>*   Trying <span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8080</span>...
+* Connected <span class="hljs-keyword">to</span> localhost (<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>) port <span class="hljs-number">8080</span> (#<span class="hljs-number">0</span>)
+&gt; GET /health-server HTTP/<span class="hljs-number">1.1</span>
+&gt; Hos<span class="hljs-variable">t:</span> localhos<span class="hljs-variable">t:8080</span>
+&gt; User-Agen<span class="hljs-variable">t:</span> curl/<span class="hljs-number">8.1</span>.<span class="hljs-number">2</span>
+&gt; Accep<span class="hljs-variable">t:</span> */*
+&gt;
+&lt; HTTP/<span class="hljs-number">1.1</span> <span class="hljs-number">200</span>
+&lt; <span class="hljs-keyword">X</span>-Content-Type-Option<span class="hljs-variable">s:</span> nosniff
+&lt; <span class="hljs-keyword">X</span>-XSS-Protection: <span class="hljs-number">0</span>
+&lt; Cache-Contro<span class="hljs-variable">l:</span> <span class="hljs-keyword">no</span>-cache, <span class="hljs-keyword">no</span>-store, <span class="hljs-built_in">max</span>-age=<span class="hljs-number">0</span>, must-revalidate
+&lt; Pragm<span class="hljs-variable">a:</span> <span class="hljs-keyword">no</span>-cache
+&lt; Expire<span class="hljs-variable">s:</span> <span class="hljs-number">0</span>
+&lt; <span class="hljs-keyword">X</span>-Frame-Option<span class="hljs-variable">s:</span> DENY
+&lt; Content-Type: application/json
+&lt; Transfer-Encodin<span class="hljs-variable">g:</span> chunked
+&lt; Date: Tue, <span class="hljs-number">05</span> Sep <span class="hljs-number">2023</span> <span class="hljs-number">15</span>:<span class="hljs-number">17</span>:<span class="hljs-number">31</span> GMT
+&lt;
+* Connection #<span class="hljs-number">0</span> <span class="hljs-keyword">to</span> host localhost <span class="hljs-keyword">left</span> intact
+true%
+</code></pre><h3 id="calling-server-service-directly-providing-the-client-certificate">Calling <code>server-service</code> directly providing the client certificate</h3>
+<p>Request:</p>
+<pre><code>curl -k -v --cert-type P12 --cert client.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+</code></pre><p>Response:</p>
+<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+<span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
+<span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Server hello (2):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Unknown (8):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Request CERT (13):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, CERT verify (15):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, CERT verify (15):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+<span class="hljs-bullet">* </span>ALPN: server did not agree on a protocol. Uses default.
+<span class="hljs-bullet">* </span>Server certificate:
+<span class="hljs-bullet">*  </span>subject: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>start date: Sep  5 09:17:35 2023 GMT
+<span class="hljs-bullet">*  </span>expire date: Sep  4 09:17:35 2024 GMT
+<span class="hljs-bullet">*  </span>issuer: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>SSL certificate verify result: self signed certificate (18), continuing anyway.
+<span class="hljs-bullet">* </span>using HTTP/1.x
+<span class="hljs-quote">&gt; GET /health HTTP/1.1</span>
+<span class="hljs-quote">&gt; Host: localhost:8443</span>
+<span class="hljs-quote">&gt; User-Agent: curl/8.1.2</span>
+<span class="hljs-quote">&gt; Accept: */*</span>
+<span class="hljs-quote">&gt;
+&lt; HTTP/1.1 200</span>
+<span class="xml"><span class="hljs-tag">&lt; <span class="hljs-attr">Content-Type:</span> <span class="hljs-attr">application</span>/<span class="hljs-attr">json</span>
+&lt; <span class="hljs-attr">Transfer-Encoding:</span> <span class="hljs-attr">chunked</span>
+&lt; <span class="hljs-attr">Date:</span> <span class="hljs-attr">Tue</span>, <span class="hljs-attr">05</span> <span class="hljs-attr">Sep</span> <span class="hljs-attr">2023</span> <span class="hljs-attr">15:24:07</span> <span class="hljs-attr">GMT</span>
+&lt;
+* <span class="hljs-attr">Connection</span> #<span class="hljs-attr">0</span> <span class="hljs-attr">to</span> <span class="hljs-attr">host</span> <span class="hljs-attr">localhost</span> <span class="hljs-attr">left</span> <span class="hljs-attr">intact</span>
+<span class="hljs-attr">true</span>%</span></span>
+</code></pre><h3 id="calling-server-service-without-providing-the-client-certificate">Calling <code>server-service</code> without providing the client certificate</h3>
+<p>Request:</p>
+<pre><code>curl -k -v <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+</code></pre><p>Response:</p>
+<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+<span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
+<span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Server hello (2):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Unknown (8):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Request CERT (13):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, CERT verify (15):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+<span class="hljs-bullet">* </span>ALPN: server did not agree on a protocol. Uses default.
+<span class="hljs-bullet">* </span>Server certificate:
+<span class="hljs-bullet">*  </span>subject: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>start date: Sep  5 09:17:35 2023 GMT
+<span class="hljs-bullet">*  </span>expire date: Sep  4 09:17:35 2024 GMT
+<span class="hljs-bullet">*  </span>issuer: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>SSL certificate verify result: self signed certificate (18), continuing anyway.
+<span class="hljs-bullet">* </span>using HTTP/1.x
+<span class="hljs-quote">&gt; GET /health HTTP/1.1</span>
+<span class="hljs-quote">&gt; Host: localhost:8443</span>
+<span class="hljs-quote">&gt; User-Agent: curl/8.1.2</span>
+<span class="hljs-quote">&gt; Accept: */*</span>
+<span class="hljs-quote">&gt;
+* LibreSSL SSL_read: LibreSSL/3.3.6: error:1404C412:SSL routines:ST_OK:sslv3 alert bad certificate, errno 0</span>
+<span class="hljs-bullet">* </span>Closing connection 0
+curl: (56) LibreSSL SSL<span class="hljs-emphasis">_read: LibreSSL/3.3.6: error:1404C412:SSL routines:ST_</span>OK:sslv3 alert bad certificate, errno 0
+</code></pre><h3 id="calling-server-service-with-wrong-certificate">Calling <code>server-service</code> with wrong certificate</h3>
+<p>Request:</p>
+<pre><code>curl -k -v --cert-type P12 --cert server.<span class="hljs-string">p12:</span>changeit <span class="hljs-string">https:</span><span class="hljs-comment">//localhost:8443/health</span>
+</code></pre><p>Response:</p>
+<pre><code><span class="hljs-bullet">*   </span>Trying 127.0.0.1:8443...
+<span class="hljs-bullet">* </span>Connected to localhost (127.0.0.1) port 8443 (#0)
+<span class="hljs-bullet">* </span>ALPN: offers h2,http/1.1
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Client hello (1):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Server hello (2):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Unknown (8):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Request CERT (13):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, CERT verify (15):
+<span class="hljs-bullet">* </span>(304) (IN), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Certificate (11):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, CERT verify (15):
+<span class="hljs-bullet">* </span>(304) (OUT), TLS handshake, Finished (20):
+<span class="hljs-bullet">* </span>SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+<span class="hljs-bullet">* </span>ALPN: server did not agree on a protocol. Uses default.
+<span class="hljs-bullet">* </span>Server certificate:
+<span class="hljs-bullet">*  </span>subject: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>start date: Sep  5 09:17:35 2023 GMT
+<span class="hljs-bullet">*  </span>expire date: Sep  4 09:17:35 2024 GMT
+<span class="hljs-bullet">*  </span>issuer: C=U; ST=CA; L=; O=Examples; OU=Server; CN=Server
+<span class="hljs-bullet">*  </span>SSL certificate verify result: self signed certificate (18), continuing anyway.
+<span class="hljs-bullet">* </span>using HTTP/1.x
+<span class="hljs-quote">&gt; GET /health HTTP/1.1</span>
+<span class="hljs-quote">&gt; Host: localhost:8443</span>
+<span class="hljs-quote">&gt; User-Agent: curl/8.1.2</span>
+<span class="hljs-quote">&gt; Accept: */*</span>
+<span class="hljs-quote">&gt;
+* LibreSSL SSL_read: LibreSSL/3.3.6: error:1404C416:SSL routines:ST_OK:sslv3 alert certificate unknown, errno 0</span>
+<span class="hljs-bullet">* </span>Closing connection 0
+curl: (56) LibreSSL SSL<span class="hljs-emphasis">_read: LibreSSL/3.3.6: error:1404C416:SSL routines:ST_</span>OK:sslv3 alert certificate unknown, errno 0
+</code></pre>
